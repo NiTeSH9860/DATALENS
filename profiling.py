@@ -15,6 +15,8 @@ Requires: pip install pandas
 
 import pandas as pd
 
+from numeric_cleaning import is_messy_numeric_column, clean_numeric_column
+
 
 def detect_column_types(df: pd.DataFrame) -> dict:
     """Classify each column as numeric, categorical, datetime, or text.
@@ -53,6 +55,18 @@ def detect_column_types(df: pd.DataFrame) -> dict:
         # alone silently misses these. is_object_dtype/is_string_dtype
         # together catch both cases.
         if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+            # Check for messy-numeric formatting (currency, thousand
+            # separators, percentages, accounting negatives) BEFORE
+            # trying datetime — a column of "$1,234.56" values should
+            # be classified numeric, not misread as text or dropped
+            # into a low-signal categorical bucket.
+            if is_messy_numeric_column(series):
+                col_lower = str(col).lower()
+                looks_like_id = any(kw in col_lower for kw in ["id", "code", "zip", "postal"])
+                if not looks_like_id:
+                    column_types[col] = "numeric"
+                    continue
+
             # Try parsing as a date — if most non-null values parse
             # successfully, treat it as a datetime column
             sample = series.dropna().head(50)
@@ -78,10 +92,28 @@ def detect_column_types(df: pd.DataFrame) -> dict:
     return column_types
 
 
+def clean_dataframe(df: pd.DataFrame, column_types: dict) -> pd.DataFrame:
+    """Returns a NEW DataFrame with columns actually converted to match
+    their detected type — messy-numeric text columns become real
+    floats, datetime-detected columns become real datetime64. This is
+    what visualize.py and qa.py should operate on, not the raw upload,
+    since detect_column_types alone only classifies, it doesn't convert."""
+    cleaned = df.copy()
+
+    for col, col_type in column_types.items():
+        if col_type == "numeric" and not pd.api.types.is_numeric_dtype(cleaned[col]):
+            cleaned[col] = clean_numeric_column(cleaned[col])
+        elif col_type == "datetime" and not pd.api.types.is_datetime64_any_dtype(cleaned[col]):
+            cleaned[col] = pd.to_datetime(cleaned[col], errors="coerce", format="mixed")
+
+    return cleaned
+
+
 def profile_dataset(df: pd.DataFrame) -> dict:
     """Build a full profile: shape, column types, missing values, and
     type-appropriate summary stats for each column."""
     column_types = detect_column_types(df)
+    df = clean_dataframe(df, column_types)  # so stats below use real numbers, not strings
 
     missing = df.isnull().sum()
     missing_pct = (missing / len(df) * 100).round(1)
@@ -138,8 +170,27 @@ def print_profile_summary(profile: dict) -> None:
 
 
 if __name__ == "__main__":
-    # Quick self-test against the sales dashboard's dataset, reused here
-    # purely to prove the profiling logic works on a real, messy CSV
+    print("=== Test: synthetic messy-numeric column (currency, thousand-separators) ===")
+    messy_df = pd.DataFrame({
+        "category": ["Electronics", "Furniture", "Electronics", "Furniture", "Electronics", "Furniture"],
+        "revenue": ["$1,234.56", "$999.00", "$2,100.50", "$450.25", "$300.00", "$1,500.75"],
+        "growth_pct": ["12%", "-5%", "8%", "20%", "3%", "15%"],
+    })
+    column_types = detect_column_types(messy_df)
+    print(f"Detected types: {column_types}")
+    assert column_types["revenue"] == "numeric", f"Expected numeric, got {column_types['revenue']}"
+    assert column_types["growth_pct"] == "numeric", f"Expected numeric, got {column_types['growth_pct']}"
+    assert column_types["category"] == "categorical", f"Expected categorical, got {column_types['category']}"
+
+    cleaned = clean_dataframe(messy_df, column_types)
+    print(f"Cleaned revenue values: {cleaned['revenue'].tolist()}")
+    assert cleaned["revenue"].iloc[0] == 1234.56
+    expected_sum = 1234.56 + 999.00 + 2100.50 + 450.25 + 300.00 + 1500.75
+    assert abs(cleaned["revenue"].sum() - expected_sum) < 0.01
+    print("PASSED — messy currency correctly detected AND converted to real numbers\n")
+
+    # Quick self-test against a real CSV, purely to prove the profiling
+    # logic works end-to-end on real, messy data
     import sys
     test_path = sys.argv[1] if len(sys.argv) > 1 else "data/test.csv"
     df = pd.read_csv(test_path)
