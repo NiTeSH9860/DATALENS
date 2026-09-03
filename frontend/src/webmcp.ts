@@ -3,6 +3,15 @@ export type DatasetSnapshot = {
   profile: Record<string, unknown>
   column_types: Record<string, string>
   preview: Record<string, unknown>[]
+  visualizations?: Visualization[]
+}
+
+export type Visualization = {
+  kind: 'bar' | 'histogram'
+  title: string
+  column: string
+  labels: string[]
+  values: number[]
 }
 
 type ModelContext = {

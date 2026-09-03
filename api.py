@@ -35,11 +35,35 @@ def _analyze(raw_bytes: bytes) -> tuple[dict, dict, object]:
         raise HTTPException(status_code=400, detail=f"Could not read CSV: {error}") from error
 
     profile = profile_dataset(dataframe)
+    visualizations = []
+    for column, column_type in column_types.items():
+        if column_type == "categorical":
+            counts = dataframe[column].value_counts().head(8)
+            visualizations.append({
+                "kind": "bar",
+                "title": f"Count by {column}",
+                "column": str(column),
+                "labels": [str(label) for label in counts.index],
+                "values": [int(value) for value in counts.values],
+            })
+        elif column_type == "numeric":
+            values = dataframe[column].dropna()
+            if len(values) > 0:
+                bins = min(8, max(3, int(values.nunique())))
+                histogram = values.value_counts(bins=bins, sort=False).sort_index()
+                visualizations.append({
+                    "kind": "histogram",
+                    "title": f"Distribution of {column}",
+                    "column": str(column),
+                    "labels": [f"{interval.left:.1f}–{interval.right:.1f}" for interval in histogram.index],
+                    "values": [int(value) for value in histogram.values],
+                })
     preview = dataframe.head(20).where(dataframe.notna(), None).to_dict(orient="records")
     return {
         "profile": profile,
         "column_types": column_types,
         "preview": preview,
+        "visualizations": visualizations[:8],
         "warnings": [warning.message for warning in warnings],
     }, column_types, dataframe
 
