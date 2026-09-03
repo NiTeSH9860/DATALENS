@@ -1,0 +1,9 @@
+streamlit
+pandas
+numpy
+plotly
+bcrypt
+psycopg2-binary
+python-dotenv
+google-genai
+charset-normalizer
