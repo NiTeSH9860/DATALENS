@@ -7,7 +7,7 @@ export type DatasetSnapshot = {
 }
 
 export type Visualization = {
-  kind: 'bar' | 'histogram'
+  kind: 'bar' | 'histogram' | 'donut' | 'line' | 'scatter'
   title: string
   column: string
   labels: string[]
