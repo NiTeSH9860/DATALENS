@@ -70,6 +70,33 @@ def render_login_page():
             except auth.AuthError as e:
                 st.error(str(e))
 
+        with st.expander("Forgot password?"):
+            with st.form("forgot_password_form"):
+                reset_email = st.text_input("Account email")
+                send_reset = st.form_submit_button("Send reset code")
+            if send_reset:
+                try:
+                    auth.request_password_reset(reset_email)
+                    st.session_state.reset_email = reset_email
+                    st.success("If an account uses that email, a reset code has been sent.")
+                except auth.AuthError as e:
+                    st.error(str(e))
+
+            with st.form("reset_password_form"):
+                reset_code = st.text_input("Reset code")
+                replacement_password = st.text_input("New password", type="password")
+                finish_reset = st.form_submit_button("Reset password")
+            if finish_reset:
+                try:
+                    auth.reset_password(
+                        st.session_state.get("reset_email", reset_email),
+                        reset_code,
+                        replacement_password,
+                    )
+                    st.success("Password reset. You can now log in.")
+                except auth.AuthError as e:
+                    st.error(str(e))
+
     with tab_register:
         with st.form("register_form"):
             new_username = st.text_input("Choose a username")
@@ -81,9 +108,28 @@ def render_login_page():
         if submitted:
             try:
                 auth.create_user(new_username, new_email, new_password)
-                st.success("Account created! Log in from the other tab.")
+                st.session_state.verification_email = new_email
+                st.success("Account created. Check your email for a verification code.")
             except auth.AuthError as e:
                 st.error(str(e))
+
+        with st.expander("Verify your email"):
+            verification_email = st.text_input(
+                "Email to verify", value=st.session_state.get("verification_email", "")
+            )
+            verification_code = st.text_input("Verification code")
+            if st.button("Verify email"):
+                try:
+                    auth.verify_email(verification_email, verification_code)
+                    st.success("Email verified. You can now log in.")
+                except auth.AuthError as e:
+                    st.error(str(e))
+            if st.button("Resend verification code"):
+                try:
+                    auth.resend_verification(verification_email)
+                    st.success("A new verification code has been sent.")
+                except auth.AuthError as e:
+                    st.error(str(e))
 
 
 if st.session_state.user is None:

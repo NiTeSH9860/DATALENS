@@ -38,7 +38,7 @@ DataLens is a Streamlit dashboard for exploring CSV datasets. Users can create a
    Copy-Item .env.example .env
    ```
 
-4. Set `DATABASE_URL` and `GEMINI_API_KEY` in `.env`.
+4. Set `DATABASE_URL`, `GEMINI_API_KEY`, and the SMTP variables in `.env`. Use an email provider app password where required; do not use your normal email password.
 
 5. Start the app:
 
@@ -50,7 +50,7 @@ The database tables are created automatically on the first run.
 
 ## Streamlit deployment
 
-Add `DATABASE_URL` and `GEMINI_API_KEY` under the deployment platform's secrets settings. Install dependencies from `requirements.txt`, then use `streamlit run app.py` as the start command.
+Add `DATABASE_URL`, `GEMINI_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM_EMAIL` under the deployment platform's secrets settings. Install dependencies from `requirements.txt`, then use `streamlit run app.py` as the start command.
 
 Never commit `.env` or API keys to source control.
 
