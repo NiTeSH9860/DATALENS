@@ -48,6 +48,16 @@ DataLens is a Streamlit dashboard for exploring CSV datasets. Users can create a
 
 The database tables are created automatically on the first run.
 
+## React frontend with WebMCP
+
+The `frontend` directory contains a Vite React client and the Python API
+used by it. Run the API with `uvicorn api:app --reload --port 8000`, then
+run the client from `frontend` with `npm run dev`. The client registers
+read-only WebMCP tools when the browser implements `document.modelContext`.
+
+WebMCP is an experimental browser API and requires a compatible browser or
+ChatGPT test environment. Use HTTPS when deploying beyond localhost.
+
 ## Streamlit deployment
 
 Add `DATABASE_URL`, `GEMINI_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM_EMAIL` under the deployment platform's secrets settings. Install dependencies from `requirements.txt`, then use `streamlit run app.py` as the start command.
