@@ -6,6 +6,12 @@ type Analysis = DatasetSnapshot & { warnings: string[] }
 type Answer = { type: string; value?: number; explanation?: string; data?: Record<string, unknown>[] }
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
+function answerHeading(answer: Answer): string {
+  if (answer.type === 'scalar') return 'According to your data'
+  if (answer.type === 'explanation_only') return 'Based on your data'
+  return 'According to the data, here is the breakdown'
+}
+
 function App() {
   const [file, setFile] = useState<File | null>(null)
   const [pending, setPending] = useState<Analysis | null>(null)
@@ -91,7 +97,7 @@ function Dashboard({ analysis, conversation, question, busy, onQuestion, onSubmi
     <div className="metrics"><div><span>Rows</span><strong>{analysis.profile.n_rows as number}</strong></div><div><span>Columns</span><strong>{analysis.profile.n_columns as number}</strong></div><div><span>Missing values</span><strong>{missing}</strong></div></div>
     <div className="panel"><div className="panel-head"><div><p className="eyebrow">02 / Inspect</p><h2>Automatic visual insights</h2></div><span className="badge">Click to expand</span></div><div className="charts">{analysis.visualizations?.map((chart) => <Chart key={chart.title} chart={chart} onOpen={() => onChartSelect(chart)} />)}</div></div>
     <div className="panel"><div className="panel-head"><div><p className="eyebrow">03 / Profile</p><h2>Column profile</h2></div></div><div className="table-wrap"><table><thead><tr><th>Column</th><th>Type</th><th>Missing</th></tr></thead><tbody>{Object.entries(columns).map(([name, info]) => <tr key={name}><td>{name}</td><td><span className="type">{info.type}</span></td><td>{info.missing_count} <small>({info.missing_pct}%)</small></td></tr>)}</tbody></table></div></div>
-    <div className="panel ask-panel"><p className="eyebrow">04 / Ask</p><h2>Talk to the dataset</h2><div className="ask-row"><input value={question} onChange={(event) => onQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') onSubmit() }} placeholder="What is the average sales by category?" /><button type="button" onClick={onSubmit} disabled={busy}>Ask <span>↗</span></button></div>{conversation.map((item, index) => <div className="chat-turn" key={`${item.question}-${index}`}><div className="bubble user-bubble">{item.question}</div><div className="bubble assistant-bubble"><strong>{item.answer.type === 'scalar' ? item.answer.value : 'Here is what I found'}</strong><p>{item.answer.explanation ?? 'I analyzed the confirmed dataset using validated operations.'}</p>{item.answer.data && <div className="result-table">{item.answer.data.slice(0, 8).map((row, rowIndex) => <div className="result-row" key={rowIndex}>{Object.entries(row).map(([key, value]) => <span key={key}><small>{key}</small>{String(value)}</span>)}</div>)}</div>}</div></div>)}</div>
+    <div className="panel ask-panel"><p className="eyebrow">04 / Ask</p><h2>Talk to the dataset</h2><div className="ask-row"><input value={question} onChange={(event) => onQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') onSubmit() }} placeholder="What is the average sales by category?" /><button type="button" onClick={onSubmit} disabled={busy}>Ask <span>↗</span></button></div>{conversation.map((item, index) => <div className="chat-turn" key={`${item.question}-${index}`}><div className="bubble user-bubble">{item.question}</div><div className="bubble assistant-bubble"><strong>{item.answer.type === 'scalar' ? `${answerHeading(item.answer)}: ${item.answer.value}` : answerHeading(item.answer)}</strong><p>{item.answer.explanation ?? 'I analyzed the confirmed dataset using validated operations.'}</p>{item.answer.data && <div className="result-table">{item.answer.data.slice(0, 8).map((row, rowIndex) => <div className="result-row" key={rowIndex}>{Object.entries(row).map(([key, value]) => <span key={key}><small>{key}</small>{String(value)}</span>)}</div>)}</div>}</div></div>)}</div>
   </>
 }
 
